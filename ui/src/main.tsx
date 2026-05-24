@@ -36,21 +36,21 @@ declare global {
 }
 
 const triggerOptions = [
-  { token: "mouse.left", label: "左键", hint: "点击常用，不建议默认占用" },
-  { token: "mouse.right", label: "右键", hint: "可与侧键组合" },
-  { token: "mouse.middle", label: "中键", hint: "滚轮按下" },
-  { token: "mouse.x1", label: "侧键 1", hint: "推荐，用作 Typeless 唤醒" },
-  { token: "mouse.x2", label: "侧键 2", hint: "备用侧键" },
-  { token: "ctrl", label: "Ctrl", hint: "键盘组合" },
-  { token: "shift", label: "Shift", hint: "键盘组合" },
-  { token: "tab", label: "Tab", hint: "键盘组合" },
+  { token: "mouse.left", label: "Left", hint: "Mouse left button" },
+  { token: "mouse.right", label: "Right", hint: "Mouse right button" },
+  { token: "mouse.middle", label: "Wheel", hint: "Middle wheel click" },
+  { token: "mouse.x1", label: "Side 1", hint: "Recommended trigger" },
+  { token: "mouse.x2", label: "Side 2", hint: "Try this if Side 1 does not react" },
+  { token: "ctrl", label: "Ctrl", hint: "Keyboard combo" },
+  { token: "shift", label: "Shift", hint: "Keyboard combo" },
+  { token: "tab", label: "Tab", hint: "Keyboard combo" },
 ];
 
 const targetOptions = [
-  { token: "alt_r", label: "右 Alt", hint: "Typeless 推荐" },
-  { token: "alt_l", label: "左 Alt", hint: "左侧 Alt" },
-  { token: "alt", label: "Alt", hint: "系统默认 Alt" },
-  { token: "ctrl", label: "Ctrl", hint: "控制键" },
+  { token: "alt_r", label: "Right Alt", hint: "Typeless target" },
+  { token: "alt_l", label: "Left Alt", hint: "Left Alt" },
+  { token: "alt", label: "Alt", hint: "Generic Alt" },
+  { token: "ctrl", label: "Ctrl", hint: "Control" },
   { token: "shift", label: "Shift", hint: "Shift" },
   { token: "space", label: "Space", hint: "空格" },
   { token: "enter", label: "Enter", hint: "回车" },
@@ -73,8 +73,8 @@ function App() {
   const [config, setConfig] = useState<AppConfig>(fallbackConfig);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [running, setRunning] = useState(false);
-  const [logs, setLogs] = useState<string[]>(["应用已就绪，默认使用鼠标侧键 1 触发右 Alt。"]);
-  const [notice, setNotice] = useState("打开应用后会自动启动映射。");
+  const [logs, setLogs] = useState<string[]>(["Ready. Default mapping: Side 1 -> Right Alt."]);
+  const [notice, setNotice] = useState("Mapping starts automatically.");
 
   const selected = config.mappings[selectedIndex] ?? config.mappings[0];
   const jsonPreview = useMemo(() => JSON.stringify(config, null, 2), [config]);
@@ -91,7 +91,7 @@ function App() {
       const started = await api.start_mapping(loaded);
       if (stopped) return;
       setRunning(started.ok);
-      setNotice(started.ok ? "映射已自动启动。按住侧键 1 测试 Typeless。" : started.error ?? "自动启动失败。");
+      setNotice(started.ok ? "Listening. Hold Side 1 to test Typeless." : started.error ?? "Auto start failed.");
     }
 
     bootstrap();
@@ -134,7 +134,7 @@ function App() {
       mappings: [
         ...current.mappings,
         {
-          name: `新映射 ${current.mappings.length + 1}`,
+          name: `Rule ${current.mappings.length + 1}`,
           enabled: true,
           mode: "hold",
           trigger: { all: ["mouse.x2"] },
@@ -150,12 +150,12 @@ function App() {
     if (!api) return;
     const saved = await api.save_config(config);
     if (!saved.ok) {
-      setNotice(saved.error ?? "保存失败。");
+      setNotice(saved.error ?? "Save failed.");
       return;
     }
     const started = await api.start_mapping(config);
     setRunning(started.ok);
-    setNotice(started.ok ? "已保存并重新启动映射。" : started.error ?? "启动失败。");
+    setNotice(started.ok ? "Saved and restarted." : started.error ?? "Start failed.");
   }
 
   async function stopMapping() {
@@ -163,7 +163,7 @@ function App() {
     if (!api) return;
     await api.stop_mapping();
     setRunning(false);
-    setNotice("映射已停止。");
+    setNotice("Stopped.");
   }
 
   return (
@@ -180,13 +180,13 @@ function App() {
         <div className={running ? "status running" : "status"}>
           <i />
           <div>
-            <strong>{running ? "正在监听" : "未运行"}</strong>
+            <strong>{running ? "Listening" : "Stopped"}</strong>
             <span>{notice}</span>
           </div>
         </div>
 
         <div className="rule-list">
-          <div className="section-label">映射方案</div>
+          <div className="section-label">Rules</div>
           {config.mappings.map((mapping, index) => (
             <button
               className={index === selectedIndex ? "rule-card active" : "rule-card"}
@@ -201,7 +201,7 @@ function App() {
             </button>
           ))}
           <button className="ghost-button" onClick={addMapping} type="button">
-            新增映射
+            New rule
           </button>
         </div>
       </section>
@@ -210,15 +210,15 @@ function App() {
         <header className="topbar">
           <div>
             <p className="kicker">Typeless Voice Trigger</p>
-            <h1>把鼠标侧键变成右 Alt。</h1>
-            <span>默认已自动启动。按住侧键 1 时，会持续发送键盘右侧 Alt。</span>
+            <h1>Mouse side button to Right Alt.</h1>
+            <span>Auto-start is on. Hold your mouse side button and watch the activity log.</span>
           </div>
           <div className="top-actions">
             <button className="secondary" onClick={stopMapping} type="button">
-              停止
+              Stop
             </button>
             <button className="primary" onClick={saveAndRestart} type="button">
-              保存并启动
+              Save & Start
             </button>
           </div>
         </header>
@@ -227,7 +227,7 @@ function App() {
           <div className="panel editor">
             <div className="field-row">
               <label>
-                映射名称
+                Rule name
                 <input
                   value={selected.name}
                   onChange={(event) => updateSelected({ name: event.target.value })}
@@ -239,7 +239,7 @@ function App() {
                   onChange={(event) => updateSelected({ enabled: event.target.checked })}
                   type="checkbox"
                 />
-                <span>启用</span>
+                <span>Enabled</span>
               </label>
             </div>
 
@@ -249,23 +249,23 @@ function App() {
                 onClick={() => updateSelected({ mode: "hold" })}
                 type="button"
               >
-                <strong>按住触发</strong>
-                <span>按下侧键时按住右 Alt，松开侧键时释放。</span>
+                <strong>Hold mode</strong>
+                <span>Hold Right Alt while the trigger is held.</span>
               </button>
               <button
                 className={selected.mode === "tap" ? "mode active" : "mode"}
                 onClick={() => updateSelected({ mode: "tap" })}
                 type="button"
               >
-                <strong>点按触发</strong>
-                <span>触发组合出现时，只发送一次目标键。</span>
+                <strong>Tap mode</strong>
+                <span>Send the target key once when the trigger appears.</span>
               </button>
             </div>
 
             <div className="device-area">
               <MouseDiagram selected={selected.trigger.all} onToggle={toggleTrigger} />
               <div className="picker-panel">
-                <div className="section-label">触发按键</div>
+                <div className="section-label">Trigger</div>
                 <div className="choice-grid">
                   {triggerOptions.map((option) => (
                     <button
@@ -284,7 +284,7 @@ function App() {
 
             <div className="target-panel">
               <div>
-                <div className="section-label">映射目标</div>
+                <div className="section-label">Target</div>
                 <h2>{labelFor(selected.target.keys[0], targetOptions)}</h2>
               </div>
               <div className="target-grid">
@@ -304,23 +304,23 @@ function App() {
           </div>
 
           <aside className="panel diagnostics">
-            <div className="section-label">测试步骤</div>
+            <div className="section-label">Test</div>
             <ol>
-              <li>确认右上角显示“正在监听”。</li>
-              <li>打开 Typeless。</li>
-              <li>按住鼠标侧键 1，不要点 App 内按钮。</li>
-              <li>如果 Typeless 没反应，点“保存并启动”再测一次。</li>
+              <li>Confirm the status says Listening.</li>
+              <li>Open Typeless and keep this app running.</li>
+              <li>Hold your mouse side button.</li>
+              <li>Check the log for Mouse down and Pressed target.</li>
             </ol>
 
             <div className="log-card">
-              <div className="section-label">运行日志</div>
+              <div className="section-label">Activity</div>
               {logs.map((line, index) => (
                 <p key={`${line}-${index}`}>{line}</p>
               ))}
             </div>
 
             <details>
-              <summary>配置预览</summary>
+              <summary>Config preview</summary>
               <pre>{jsonPreview}</pre>
             </details>
           </aside>
@@ -335,7 +335,7 @@ function MouseDiagram({ selected, onToggle }: { selected: string[]; onToggle: (t
     <div className="mouse-card">
       <div>
         <div className="section-label">Mouse</div>
-        <h2>选择鼠标动作</h2>
+        <h2>Mouse trigger</h2>
       </div>
       <div className="mouse-body" aria-label="鼠标按键示意">
         <button

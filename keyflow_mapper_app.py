@@ -18,7 +18,7 @@ APP_NAME = "KeyFlow Mapper"
 DEFAULT_CONFIG = {
     "mappings": [
         {
-            "name": "Typeless 语音唤醒",
+            "name": "Typeless voice trigger",
             "enabled": True,
             "mode": "hold",
             "trigger": {"all": ["mouse.x1"]},
@@ -122,9 +122,9 @@ def main() -> int:
         APP_NAME,
         entrypoint,
         js_api=api,
-        width=1180,
-        height=760,
-        min_size=(980, 640),
+        width=1380,
+        height=900,
+        min_size=(1120, 760),
         background_color="#eef0ea",
     )
     webview.start(gui="edgechromium", debug=False)

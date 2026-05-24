@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import sys
 import threading
 import time
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -79,6 +79,7 @@ class Remapper:
         self._log = log or (lambda message: None)
         self._keyboard_listener: keyboard.Listener | None = None
         self._mouse_listener: mouse.Listener | None = None
+        self._windows_mouse_hook: WindowsMouseHook | None = None
 
     def run(self) -> None:
         self._validate_mappings()
@@ -86,9 +87,13 @@ class Remapper:
             on_press=self._on_key_press,
             on_release=self._on_key_release,
         )
-        self._mouse_listener = mouse.Listener(on_click=self._on_mouse_click)
         self._keyboard_listener.start()
-        self._mouse_listener.start()
+        if sys.platform == "win32":
+            self._windows_mouse_hook = WindowsMouseHook(self._on_mouse_token, self._log)
+            self._windows_mouse_hook.start()
+        else:
+            self._mouse_listener = mouse.Listener(on_click=self._on_mouse_click)
+            self._mouse_listener.start()
 
         self._log("Key Mapper SDK is running. Press Ctrl+C in this window to stop.")
         self._log("Active mappings:")
@@ -114,6 +119,8 @@ class Remapper:
             self._keyboard_listener.stop()
         if self._mouse_listener is not None:
             self._mouse_listener.stop()
+        if self._windows_mouse_hook is not None:
+            self._windows_mouse_hook.stop()
 
     def request_stop(self) -> None:
         self._stop_event.set()
@@ -131,7 +138,11 @@ class Remapper:
     def _on_mouse_click(self, x: int, y: int, button: mouse.Button, pressed: bool) -> None:
         token = mouse_button_to_token(button)
         if token:
-            self._mark_pressed(token, pressed)
+            self._on_mouse_token(token, pressed)
+
+    def _on_mouse_token(self, token: str, pressed: bool) -> None:
+        self._log(f"Mouse {'down' if pressed else 'up'}: {token}")
+        self._mark_pressed(token, pressed)
 
     def _mark_pressed(self, token: str, is_pressed: bool) -> None:
         with self._lock:
@@ -233,8 +244,10 @@ def release_key(token: str, controller: keyboard.Controller) -> None:
 
 
 def send_windows_key(token: str, is_down: bool) -> bool:
-    virtual_key = WINDOWS_VIRTUAL_KEYS.get(token.removeprefix("key."))
-    if virtual_key is None:
+    normalized = token.removeprefix("key.")
+    virtual_key = WINDOWS_VIRTUAL_KEYS.get(normalized)
+    scan_code = WINDOWS_SCAN_CODES.get(normalized)
+    if virtual_key is None and scan_code is None:
         return False
 
     import ctypes
@@ -243,6 +256,7 @@ def send_windows_key(token: str, is_down: bool) -> bool:
     ULONG_PTR = wintypes.WPARAM
     KEYEVENTF_KEYUP = 0x0002
     KEYEVENTF_EXTENDEDKEY = 0x0001
+    KEYEVENTF_SCANCODE = 0x0008
     INPUT_KEYBOARD = 1
 
     class KEYBDINPUT(ctypes.Structure):
@@ -260,13 +274,13 @@ def send_windows_key(token: str, is_down: bool) -> bool:
     class INPUT(ctypes.Structure):
         _fields_ = [("type", wintypes.DWORD), ("union", INPUT_UNION)]
 
-    flags = 0
+    flags = KEYEVENTF_SCANCODE if scan_code is not None else 0
     if token in EXTENDED_WINDOWS_KEYS:
         flags |= KEYEVENTF_EXTENDEDKEY
     if not is_down:
         flags |= KEYEVENTF_KEYUP
 
-    event = INPUT(type=INPUT_KEYBOARD, union=INPUT_UNION(ki=KEYBDINPUT(virtual_key, 0, flags, 0, 0)))
+    event = INPUT(type=INPUT_KEYBOARD, union=INPUT_UNION(ki=KEYBDINPUT(virtual_key or 0, scan_code or 0, flags, 0, 0)))
     sent = ctypes.windll.user32.SendInput(1, ctypes.byref(event), ctypes.sizeof(INPUT))
     return sent == 1
 
@@ -316,3 +330,134 @@ WINDOWS_VIRTUAL_KEYS: dict[str, int] = {
 
 
 EXTENDED_WINDOWS_KEYS = {"alt_r", "ctrl_r"}
+
+
+WINDOWS_SCAN_CODES: dict[str, int] = {
+    "alt": 0x38,
+    "alt_l": 0x38,
+    "alt_r": 0x38,
+    "ctrl": 0x1D,
+    "ctrl_l": 0x1D,
+    "ctrl_r": 0x1D,
+    "shift": 0x2A,
+    "shift_l": 0x2A,
+    "shift_r": 0x36,
+    "space": 0x39,
+    "tab": 0x0F,
+    "enter": 0x1C,
+    "esc": 0x01,
+    "escape": 0x01,
+    "a": 0x1E,
+    "b": 0x30,
+    "c": 0x2E,
+    "d": 0x20,
+    "e": 0x12,
+    "f": 0x21,
+    "g": 0x22,
+    "h": 0x23,
+    "i": 0x17,
+    "j": 0x24,
+    "k": 0x25,
+    "l": 0x26,
+    "m": 0x32,
+    "n": 0x31,
+    "o": 0x18,
+    "p": 0x19,
+    "q": 0x10,
+    "r": 0x13,
+    "s": 0x1F,
+    "t": 0x14,
+    "u": 0x16,
+    "v": 0x2F,
+    "w": 0x11,
+    "x": 0x2D,
+    "y": 0x15,
+    "z": 0x2C,
+}
+
+
+class WindowsMouseHook:
+    def __init__(self, callback: Callable[[str, bool], None], log: LogFn) -> None:
+        self._callback = callback
+        self._log = log
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._hook = None
+        self._thread_id = 0
+        self._stop_event = threading.Event()
+        self._hook_proc = None
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        if self._thread_id:
+            import ctypes
+
+            ctypes.windll.user32.PostThreadMessageW(self._thread_id, 0x0012, 0, 0)
+        if self._thread.is_alive():
+            self._thread.join(timeout=1)
+
+    def _run(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        WH_MOUSE_LL = 14
+        WM_LBUTTONDOWN = 0x0201
+        WM_LBUTTONUP = 0x0202
+        WM_RBUTTONDOWN = 0x0204
+        WM_RBUTTONUP = 0x0205
+        WM_MBUTTONDOWN = 0x0207
+        WM_MBUTTONUP = 0x0208
+        WM_XBUTTONDOWN = 0x020B
+        WM_XBUTTONUP = 0x020C
+        HC_ACTION = 0
+
+        class POINT(ctypes.Structure):
+            _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
+
+        class MSLLHOOKSTRUCT(ctypes.Structure):
+            _fields_ = [
+                ("pt", POINT),
+                ("mouseData", wintypes.DWORD),
+                ("flags", wintypes.DWORD),
+                ("time", wintypes.DWORD),
+                ("dwExtraInfo", ctypes.c_void_p),
+            ]
+
+        HOOKPROC = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM)
+
+        def hook_proc(n_code: int, w_param: int, l_param: int) -> int:
+            if n_code == HC_ACTION:
+                token = None
+                pressed = w_param in {WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN, WM_XBUTTONDOWN}
+                if w_param in {WM_LBUTTONDOWN, WM_LBUTTONUP}:
+                    token = "mouse.left"
+                elif w_param in {WM_RBUTTONDOWN, WM_RBUTTONUP}:
+                    token = "mouse.right"
+                elif w_param in {WM_MBUTTONDOWN, WM_MBUTTONUP}:
+                    token = "mouse.middle"
+                elif w_param in {WM_XBUTTONDOWN, WM_XBUTTONUP}:
+                    info = ctypes.cast(l_param, ctypes.POINTER(MSLLHOOKSTRUCT)).contents
+                    x_button = (info.mouseData >> 16) & 0xFFFF
+                    token = "mouse.x1" if x_button == 1 else "mouse.x2" if x_button == 2 else None
+                if token:
+                    self._callback(token, pressed)
+            return ctypes.windll.user32.CallNextHookEx(self._hook, n_code, w_param, l_param)
+
+        self._thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
+        self._hook_proc = HOOKPROC(hook_proc)
+        module = ctypes.windll.kernel32.GetModuleHandleW(None)
+        self._hook = ctypes.windll.user32.SetWindowsHookExW(WH_MOUSE_LL, self._hook_proc, module, 0)
+        if not self._hook:
+            self._log("Windows mouse hook failed; mouse buttons may not be captured.")
+            return
+
+        self._log("Windows low-level mouse hook is active.")
+        message = wintypes.MSG()
+        while not self._stop_event.is_set() and ctypes.windll.user32.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:
+            ctypes.windll.user32.TranslateMessage(ctypes.byref(message))
+            ctypes.windll.user32.DispatchMessageW(ctypes.byref(message))
+
+        ctypes.windll.user32.UnhookWindowsHookEx(self._hook)
+        self._hook = None
