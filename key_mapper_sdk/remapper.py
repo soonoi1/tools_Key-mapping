@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -163,19 +164,19 @@ class Remapper:
 
     def _press_targets(self, mapping: Mapping) -> None:
         for token in mapping.target.keys:
-            self._keyboard_controller.press(resolve_key(token))
+            press_key(token, self._keyboard_controller)
         self._log(f"Pressed target for {mapping.name}")
 
     def _release_targets(self, mapping: Mapping) -> None:
         for token in reversed(mapping.target.keys):
-            self._keyboard_controller.release(resolve_key(token))
+            release_key(token, self._keyboard_controller)
         self._log(f"Released target for {mapping.name}")
 
     def _tap_targets(self, mapping: Mapping) -> None:
         for token in mapping.target.keys:
-            self._keyboard_controller.press(resolve_key(token))
+            press_key(token, self._keyboard_controller)
         for token in reversed(mapping.target.keys):
-            self._keyboard_controller.release(resolve_key(token))
+            release_key(token, self._keyboard_controller)
         self._log(f"Tapped target for {mapping.name}")
 
     def _validate_mappings(self) -> None:
@@ -217,3 +218,101 @@ def resolve_key(token: str) -> keyboard.Key | str:
     if len(token) == 1:
         return token
     raise ValueError(f"Unsupported target key token: {token}")
+
+
+def press_key(token: str, controller: keyboard.Controller) -> None:
+    if sys.platform == "win32" and send_windows_key(token, is_down=True):
+        return
+    controller.press(resolve_key(token))
+
+
+def release_key(token: str, controller: keyboard.Controller) -> None:
+    if sys.platform == "win32" and send_windows_key(token, is_down=False):
+        return
+    controller.release(resolve_key(token))
+
+
+def send_windows_key(token: str, is_down: bool) -> bool:
+    virtual_key = WINDOWS_VIRTUAL_KEYS.get(token.removeprefix("key."))
+    if virtual_key is None:
+        return False
+
+    import ctypes
+    from ctypes import wintypes
+
+    ULONG_PTR = wintypes.WPARAM
+    KEYEVENTF_KEYUP = 0x0002
+    KEYEVENTF_EXTENDEDKEY = 0x0001
+    INPUT_KEYBOARD = 1
+
+    class KEYBDINPUT(ctypes.Structure):
+        _fields_ = [
+            ("wVk", wintypes.WORD),
+            ("wScan", wintypes.WORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ULONG_PTR),
+        ]
+
+    class INPUT_UNION(ctypes.Union):
+        _fields_ = [("ki", KEYBDINPUT)]
+
+    class INPUT(ctypes.Structure):
+        _fields_ = [("type", wintypes.DWORD), ("union", INPUT_UNION)]
+
+    flags = 0
+    if token in EXTENDED_WINDOWS_KEYS:
+        flags |= KEYEVENTF_EXTENDEDKEY
+    if not is_down:
+        flags |= KEYEVENTF_KEYUP
+
+    event = INPUT(type=INPUT_KEYBOARD, union=INPUT_UNION(ki=KEYBDINPUT(virtual_key, 0, flags, 0, 0)))
+    sent = ctypes.windll.user32.SendInput(1, ctypes.byref(event), ctypes.sizeof(INPUT))
+    return sent == 1
+
+
+WINDOWS_VIRTUAL_KEYS: dict[str, int] = {
+    "alt": 0x12,
+    "alt_l": 0xA4,
+    "alt_r": 0xA5,
+    "ctrl": 0x11,
+    "ctrl_l": 0xA2,
+    "ctrl_r": 0xA3,
+    "shift": 0x10,
+    "shift_l": 0xA0,
+    "shift_r": 0xA1,
+    "space": 0x20,
+    "tab": 0x09,
+    "enter": 0x0D,
+    "esc": 0x1B,
+    "escape": 0x1B,
+    "a": 0x41,
+    "b": 0x42,
+    "c": 0x43,
+    "d": 0x44,
+    "e": 0x45,
+    "f": 0x46,
+    "g": 0x47,
+    "h": 0x48,
+    "i": 0x49,
+    "j": 0x4A,
+    "k": 0x4B,
+    "l": 0x4C,
+    "m": 0x4D,
+    "n": 0x4E,
+    "o": 0x4F,
+    "p": 0x50,
+    "q": 0x51,
+    "r": 0x52,
+    "s": 0x53,
+    "t": 0x54,
+    "u": 0x55,
+    "v": 0x56,
+    "w": 0x57,
+    "x": 0x58,
+    "y": 0x59,
+    "z": 0x5A,
+}
+
+
+EXTENDED_WINDOWS_KEYS = {"alt_r", "ctrl_r"}

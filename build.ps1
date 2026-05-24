@@ -7,10 +7,15 @@ if (-not (Test-Path ".venv")) {
 .\.venv\Scripts\python -m pip install --upgrade pip
 .\.venv\Scripts\pip install -r requirements.txt
 
+Push-Location ui
+npm install --no-audit --no-fund --loglevel=warn
+npm run build
+Pop-Location
+
 .\.venv\Scripts\python -m unittest discover -s tests
 .\.venv\Scripts\python -m key_mapper_sdk --check
 .\.venv\Scripts\pyinstaller --clean --name KeyMapperSDK --onefile key_mapper_sdk_launcher.py
-.\.venv\Scripts\pyinstaller --clean --name KeyFlowMapper --onefile --windowed keyflow_mapper_app.py
+.\.venv\Scripts\pyinstaller --clean --name KeyFlowMapper --onefile --windowed --add-data "ui\dist;ui\dist" keyflow_mapper_app.py
 
 Get-Process KeyMapperSDK, KeyFlowMapper -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 1
