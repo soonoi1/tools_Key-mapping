@@ -1,0 +1,14 @@
+[project]
+name = "key-mapper-sdk"
+version = "0.1.0"
+description = "A tiny configurable Windows keyboard/mouse remapping SDK and CLI."
+requires-python = ">=3.10"
+dependencies = [
+  "pynput==1.8.2",
+]
+
+[project.scripts]
+key-mapper = "key_mapper_sdk.cli:main"
+
+[tool.pyinstaller]
+name = "KeyMapperSDK"

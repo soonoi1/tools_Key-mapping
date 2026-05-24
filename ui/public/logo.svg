@@ -1,0 +1,15 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">KeyFlow Mapper logo</title>
+  <desc id="desc">A rounded app icon with a keyboard key, mouse button, and flowing connection line.</desc>
+  <rect x="32" y="32" width="448" height="448" rx="118" fill="#102A2B"/>
+  <path d="M115 326C172 251 227 226 285 250C337 271 356 253 397 187" stroke="#F2B35D" stroke-width="34" stroke-linecap="round"/>
+  <path d="M115 326C172 251 227 226 285 250C337 271 356 253 397 187" stroke="#FFE7B8" stroke-width="12" stroke-linecap="round"/>
+  <rect x="102" y="267" width="136" height="116" rx="31" fill="#F7F0E3"/>
+  <rect x="129" y="298" width="82" height="23" rx="11.5" fill="#102A2B"/>
+  <path d="M161 346H194" stroke="#102A2B" stroke-width="18" stroke-linecap="round"/>
+  <path d="M325 118H382C405.196 118 424 136.804 424 160V230C424 253.196 405.196 272 382 272H325C301.804 272 283 253.196 283 230V160C283 136.804 301.804 118 325 118Z" fill="#58C7B4"/>
+  <path d="M353.5 120V176" stroke="#102A2B" stroke-width="15" stroke-linecap="round"/>
+  <path d="M321 206H385" stroke="#102A2B" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="402" cy="350" r="32" fill="#F25F4C"/>
+  <path d="M391 350L402 361L417 338" stroke="#F7F0E3" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

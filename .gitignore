@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+*.tsbuildinfo
+
+build/
+dist/
+*.spec
+ui/dist/
+release/
+
+release/run-check.out
+release/run-check.err

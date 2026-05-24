@@ -1,0 +1,15 @@
+{
+  "mappings": [
+    {
+      "name": "Hold mouse side button 1 as Alt",
+      "enabled": true,
+      "mode": "hold",
+      "trigger": {
+        "all": ["mouse.x1"]
+      },
+      "target": {
+        "keys": ["alt"]
+      }
+    }
+  ]
+}
