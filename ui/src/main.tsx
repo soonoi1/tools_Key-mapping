@@ -56,7 +56,7 @@ const initialMappings: Mapping[] = [
     enabled: true,
     mode: "hold",
     trigger: ["mouse.x1"],
-    target: ["alt"],
+    target: ["alt_r"],
   },
 ];
 

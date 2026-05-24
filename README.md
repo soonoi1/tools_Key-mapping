@@ -7,8 +7,8 @@ KeyFlow Mapper 是一个面向普通用户的键盘/鼠标映射小工具。它�
 
 默认用途已经按 Typeless 语音输入配置好：
 
-按住鼠标侧键 1 (`mouse.x1`) -> 模拟按住 `Alt`  
-松开鼠标侧键 1 -> 释放 `Alt`
+按住鼠标侧键 1 (`mouse.x1`) -> 模拟按住右 Alt (`alt_r`)  
+松开鼠标侧键 1 -> 释放右 Alt (`alt_r`)
 
 ## 前端 UI
 
@@ -42,6 +42,7 @@ python -m venv .venv
 
 打包产物会生成在 `release/`：
 
+- `release/KeyFlowMapper.exe`: 双击打开桌面配置应用，不会跳转浏览器。
 - `release/KeyMapperSDK.exe`
 - `release/config/mappings.json`
 - `release/KeyMapperSDK.zip`
@@ -59,7 +60,7 @@ python -m venv .venv
         "all": ["mouse.x1"]
       },
       "target": {
-        "keys": ["alt"]
+        "keys": ["alt_r"]
       }
     }
   ]
@@ -69,7 +70,7 @@ python -m venv .venv
 ## 常用 token
 
 - 鼠标：`mouse.left`, `mouse.right`, `mouse.middle`, `mouse.x1`, `mouse.x2`
-- 修饰键：`alt`, `ctrl`, `shift`
+- 修饰键：`alt_r`, `alt_l`, `alt`, `ctrl`, `shift`
 - 系统键：`space`, `tab`, `enter`, `esc`
 - 字母键：`key.a`, `key.b`, `key.c`
 
